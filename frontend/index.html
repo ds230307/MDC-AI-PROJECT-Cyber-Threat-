@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CTI Risk Intelligence System | AI-Powered Threat Analysis</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#00d4ff; --secondary:#7b2fff; --danger:#ff3366; --warning:#ffaa00; --success:#00ff88;
+  --dark:#050a18; --dark2:#0a1628; --dark3:#0f2040;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--dark);color:#e8f1ff;font-family:'Rajdhani',sans-serif;overflow-x:hidden;}
+h1,h2,h3,.mono{font-family:'Orbitron',sans-serif;}
+.code{font-family:'Share Tech Mono',monospace;}
+canvas#bgCanvas{position:fixed;inset:0;z-index:-2;}
+.bg-grid{position:fixed;inset:0;z-index:-1;background-image:linear-gradient(rgba(0,212,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.05) 1px,transparent 1px);background-size:40px 40px;animation:gridMove 20s linear infinite;}
+@keyframes gridMove{0%{background-position:0 0;}100%{background-position:40px 40px;}}
+
+.threat-ticker{background:var(--dark2);border-bottom:1px solid rgba(0,212,255,.2);padding:8px 0;overflow:hidden;white-space:nowrap;font-family:'Share Tech Mono',monospace;font-size:.8rem;color:var(--warning);}
+.threat-ticker span{display:inline-block;padding-left:100%;animation:ticker 30s linear infinite;}
+@keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-100%);}}
+
+nav{display:flex;justify-content:space-between;align-items:center;padding:18px 5%;background:rgba(10,22,40,.8);backdrop-filter:blur(10px);position:sticky;top:0;z-index:100;border-bottom:1px solid rgba(0,212,255,.15);}
+.logo{font-size:1.3rem;font-weight:900;color:var(--primary);letter-spacing:2px;cursor:pointer;font-family:'Orbitron',sans-serif;}
+.logo span{color:var(--secondary);}
+.nav-links{display:flex;gap:28px;list-style:none;}
+.nav-links a{color:#b8c8e0;text-decoration:none;font-weight:600;cursor:pointer;transition:.3s;font-size:.95rem;}
+.nav-links a:hover,.nav-links a.active{color:var(--primary);}
+#apiStatus{font-size:.75rem;padding:4px 10px;border-radius:12px;border:1px solid var(--success);color:var(--success);}
+#apiStatus.offline{border-color:var(--danger);color:var(--danger);}
+
+.step-nav{display:none;justify-content:center;gap:0;padding:25px 5%;background:var(--dark2);border-bottom:1px solid rgba(0,212,255,.1);}
+.step-nav.show{display:flex;}
+.step{display:flex;flex-direction:column;align-items:center;gap:6px;position:relative;padding:0 30px;cursor:pointer;}
+.step-circle{width:36px;height:36px;border-radius:50%;background:var(--dark3);border:2px solid rgba(0,212,255,.3);display:flex;align-items:center;justify-content:center;font-weight:700;color:#7a8bab;transition:.3s;}
+.step.active .step-circle{background:var(--primary);border-color:var(--primary);color:var(--dark);box-shadow:0 0 15px var(--primary);}
+.step span.label{font-size:.75rem;color:#7a8bab;}
+.step.active .label{color:var(--primary);}
+
+.page{display:none;padding:50px 5% 90px;min-height:70vh;animation:fadeIn .4s ease;}
+.page.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+.hero{text-align:center;padding:60px 0 40px;}
+.hero h1{font-size:clamp(2.2rem,6vw,4rem);font-weight:900;background:linear-gradient(90deg,var(--primary),var(--secondary));-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:2px;}
+.hero p{color:#9fb3d1;font-size:1.1rem;margin-top:14px;max-width:700px;margin-left:auto;margin-right:auto;}
+.hero-stats{display:flex;justify-content:center;gap:50px;margin-top:40px;flex-wrap:wrap;}
+.hstat{text-align:center;}
+.hstat h2{font-size:2.2rem;color:var(--primary);}
+.hstat p{font-size:.85rem;color:#7a8bab;text-transform:uppercase;letter-spacing:1px;}
+
+.quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:22px;margin-top:50px;}
+.qcard{background:var(--dark2);border:1px solid rgba(0,212,255,.15);border-radius:14px;padding:28px;cursor:pointer;transition:.3s;}
+.qcard:hover{border-color:var(--primary);transform:translateY(-6px);box-shadow:0 10px 30px rgba(0,212,255,.15);}
+.qcard i{font-size:1.8rem;color:var(--primary);margin-bottom:14px;}
+.qcard h3{font-size:1.1rem;margin-bottom:8px;}
+.qcard p{color:#8ba0c2;font-size:.85rem;}
+
+.panel{background:var(--dark2);border:1px solid rgba(0,212,255,.15);border-radius:16px;padding:35px;max-width:1000px;margin:0 auto;}
+.panel-title{display:flex;align-items:center;gap:12px;margin-bottom:25px;color:var(--primary);font-size:1.1rem;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+label{font-size:.85rem;color:#9fb3d1;margin-bottom:6px;display:block;}
+select,textarea,input[type=text]{width:100%;background:var(--dark3);border:1px solid rgba(0,212,255,.2);color:#e8f1ff;padding:12px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.95rem;}
+textarea{min-height:140px;resize:vertical;}
+.sample-btns{display:flex;flex-wrap:wrap;gap:10px;margin:15px 0;}
+.sample-btns button{background:var(--dark3);border:1px solid rgba(123,47,255,.3);color:#c4b5ff;padding:8px 14px;border-radius:20px;cursor:pointer;font-size:.8rem;transition:.3s;}
+.sample-btns button:hover{background:var(--secondary);color:#fff;}
+.btn-primary{background:linear-gradient(90deg,var(--primary),var(--secondary));border:none;color:#000;font-weight:700;padding:14px 30px;border-radius:8px;cursor:pointer;font-size:1rem;width:100%;margin-top:10px;transition:.3s;}
+.btn-primary:hover{opacity:.9;transform:translateY(-2px);}
+.btn-outline{background:transparent;border:1px solid var(--primary);color:var(--primary);padding:12px 24px;border-radius:8px;cursor:pointer;font-weight:600;}
+
+.result-box{margin-top:30px;border-top:1px solid rgba(0,212,255,.15);padding-top:25px;display:none;}
+.result-box.show{display:block;}
+.risk-badge{display:inline-block;padding:8px 20px;border-radius:20px;font-weight:900;font-size:1.1rem;letter-spacing:1px;}
+.risk-HIGH{background:rgba(255,51,102,.15);color:var(--danger);border:1px solid var(--danger);}
+.risk-MEDIUM{background:rgba(255,170,0,.15);color:var(--warning);border:1px solid var(--warning);}
+.risk-LOW{background:rgba(0,255,136,.15);color:var(--success);border:1px solid var(--success);}
+.conf-text{float:right;color:#9fb3d1;}
+.cat-bar-wrap{margin:10px 0;}
+.cat-bar-label{display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:4px;color:#b8c8e0;}
+.cat-bar-bg{background:var(--dark3);border-radius:6px;height:8px;overflow:hidden;}
+.cat-bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--secondary));border-radius:6px;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.chip{background:var(--dark3);border:1px solid rgba(0,212,255,.3);color:var(--primary);padding:6px 12px;border-radius:14px;font-size:.78rem;font-family:'Share Tech Mono',monospace;}
+.mitre-chip{border-color:rgba(255,51,102,.4);color:var(--danger);}
+
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-bottom:35px;}
+.metric-card{background:var(--dark2);border:1px solid rgba(0,212,255,.15);border-radius:14px;padding:24px;text-align:center;}
+.metric-card i{font-size:1.5rem;color:var(--primary);margin-bottom:8px;}
+.metric-value{font-size:2rem;font-weight:900;color:#fff;}
+.metric-label{font-size:.8rem;color:#7a8bab;text-transform:uppercase;}
+
+.dash-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:25px;}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr;}.form-row{grid-template-columns:1fr;}}
+.card{background:var(--dark2);border:1px solid rgba(0,212,255,.15);border-radius:14px;padding:24px;}
+.card h3{margin-bottom:16px;color:var(--primary);font-size:1rem;}
+.feed-item{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:.85rem;}
+.feed-item .tag{padding:3px 9px;border-radius:10px;font-size:.7rem;font-weight:700;}
+.bar-chart{display:flex;align-items:flex-end;gap:10px;height:180px;margin-top:10px;}
+.bar-col{flex:1;display:flex;flex-direction:column-reverse;gap:2px;}
+.bar{width:100%;border-radius:3px 3px 0 0;}
+.bar-day{text-align:center;font-size:.7rem;color:#7a8bab;margin-top:6px;}
+.donut-legend{display:flex;flex-direction:column;gap:10px;margin-top:15px;}
+.legend-row{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;}
+.legend-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px;}
+
+.scan-result{margin-top:25px;padding:20px;border-radius:12px;display:none;}
+.scan-result.show{display:block;}
+.scan-result.malicious{background:rgba(255,51,102,.08);border:1px solid var(--danger);}
+.scan-result.clean{background:rgba(0,255,136,.08);border:1px solid var(--success);}
+.checks{display:flex;flex-wrap:wrap;gap:16px;margin:14px 0;}
+.checks label{display:flex;align-items:center;gap:6px;font-size:.85rem;color:#b8c8e0;}
+
+.arch-flow{display:flex;justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;margin:30px 0;}
+.arch-box{background:var(--dark3);border:1px solid var(--primary);padding:18px 22px;border-radius:10px;text-align:center;font-size:.85rem;min-width:140px;}
+.glass-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:20px;}
+.glass-card{background:rgba(15,32,64,.6);border:1px solid rgba(0,212,255,.15);border-radius:14px;padding:24px;}
+.improve-box{margin-top:14px;background:rgba(0,255,136,.08);border-left:3px solid var(--success);padding:10px 14px;font-size:.82rem;color:#b8f5d0;border-radius:0 8px 8px 0;}
+
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;}
+.feature-card{background:var(--dark2);border:1px solid rgba(0,212,255,.15);border-radius:14px;padding:26px;}
+.feature-card i{font-size:1.7rem;color:var(--primary);margin-bottom:12px;}
+
+footer{background:var(--dark2);padding:50px 5% 20px;border-top:1px solid rgba(0,212,255,.1);}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:30px;margin-bottom:30px;}
+@media(max-width:800px){.footer-grid{grid-template-columns:1fr;}}
+footer a{color:#8ba0c2;text-decoration:none;display:block;margin-bottom:8px;font-size:.88rem;}
+footer a:hover{color:var(--primary);}
+.footer-bottom{text-align:center;padding-top:20px;border-top:1px solid rgba(255,255,255,.05);color:#5a6d8a;font-size:.8rem;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:999;}
+.modal-overlay.show{display:flex;}
+.modal-box{background:var(--dark2);border:1px solid var(--primary);border-radius:14px;padding:32px;max-width:420px;text-align:center;}
+.modal-box i{font-size:2rem;color:var(--primary);margin-bottom:14px;}
+.modal-box h3{margin-bottom:10px;}
+.modal-box p{color:#9fb3d1;margin-bottom:20px;font-size:.9rem;}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+<div class="bg-grid"></div>
+<div class="threat-ticker"><span id="tickerText">LOADING LIVE THREAT TELEMETRY...</span></div>
+
+<nav>
+  <div class="logo" onclick="goTo('home')">CTI<span>-RISK</span></div>
+  <ul class="nav-links">
+    <li><a onclick="goTo('home')" data-page="home">Home</a></li>
+    <li><a onclick="goTo('analyzer')" data-page="analyzer">Analyzer</a></li>
+    <li><a onclick="goTo('dashboard')" data-page="dashboard">Dashboard</a></li>
+    <li><a onclick="goTo('scanner')" data-page="scanner">IOC Scanner</a></li>
+    <li><a onclick="goTo('architecture')" data-page="architecture">Architecture</a></li>
+    <li><a onclick="goTo('features')" data-page="features">Features</a></li>
+  </ul>
+  <span id="apiStatus">● checking...</span>
+</nav>
+
+<div class="step-nav" id="stepNav">
+  <div class="step" data-step="analyzer" onclick="goTo('analyzer')"><div class="step-circle">1</div><span class="label">Analyzer</span></div>
+  <div class="step" data-step="dashboard" onclick="goTo('dashboard')"><div class="step-circle">2</div><span class="label">Dashboard</span></div>
+  <div class="step" data-step="scanner" onclick="goTo('scanner')"><div class="step-circle">3</div><span class="label">IOC Scanner</span></div>
+  <div class="step" data-step="architecture" onclick="goTo('architecture')"><div class="step-circle">4</div><span class="label">Architecture</span></div>
+  <div class="step" data-step="features" onclick="goTo('features')"><div class="step-circle">5</div><span class="label">Features</span></div>
+</div>
+
+<!-- ============ HOME ============ -->
+<div class="page" id="page-home">
+  <div class="hero">
+    <h1 class="fade-in">RISK IDENTIFICATION SYSTEM</h1>
+    <p class="fade-in">AI-powered Cyber Threat Intelligence platform combining NLP classification, IOC extraction and MITRE ATT&CK mapping — backed by a live FastAPI + SQLite engine.</p>
+    <div class="hero-stats">
+      <div class="hstat"><h2 class="counter" data-target="98.7" data-suffix="%">0</h2><p>Model Accuracy</p></div>
+      <div class="hstat"><h2 class="counter" data-target="12847" data-suffix="">0</h2><p>Threats Analyzed</p></div>
+      <div class="hstat"><h2 class="counter" data-target="3" data-suffix="">0</h2><p>Risk Levels</p></div>
+      <div class="hstat"><h2 class="counter" data-target="0.3" data-suffix="s">0</h2><p>Response Time</p></div>
+    </div>
+  </div>
+  <div class="quick-grid">
+    <div class="qcard" onclick="goTo('analyzer')"><i class="fa-solid fa-brain"></i><h3>Step 1 · Analyzer</h3><p>Run AI classification on raw threat text and extract IOCs + MITRE techniques.</p></div>
+    <div class="qcard" onclick="goTo('dashboard')"><i class="fa-solid fa-chart-line"></i><h3>Step 2 · Dashboard</h3><p>Live metrics, threat feed and 7-day risk distribution from the database.</p></div>
+    <div class="qcard" onclick="goTo('scanner')"><i class="fa-solid fa-magnifying-glass"></i><h3>Step 3 · IOC Scanner</h3><p>Look up IPs, domains, hashes and CVEs against simulated intel sources.</p></div>
+    <div class="qcard" onclick="goTo('architecture')"><i class="fa-solid fa-diagram-project"></i><h3>Step 4 · Architecture</h3><p>System design, tech stack and literature review backing this project.</p></div>
+    <div class="qcard" onclick="goTo('features')"><i class="fa-solid fa-list-check"></i><h3>Step 5 · Features</h3><p>Full capability breakdown of the platform.</p></div>
+  </div>
+</div>
+
+<!-- ============ ANALYZER ============ -->
+<div class="page" id="page-analyzer">
+  <div class="panel fade-in">
+    <div class="panel-title"><i class="fa-solid fa-terminal"></i><span class="code">CTI_ANALYZER_v2.1 — connected to /api/analyze</span></div>
+    <div class="form-row">
+      <div><label>Input Type</label>
+        <select id="inputType"><option value="text">Raw Text</option><option value="url">URL</option><option value="email">Email</option><option value="log">Log Entry</option></select>
+      </div>
+      <div><label>Analysis Model</label>
+        <select id="modelType"><option value="hybrid">BERT-spaCy Hybrid</option><option value="bert">BERT Classifier</option><option value="spacy">spaCy NER</option><option value="rule">Rule-Based Engine</option></select>
+      </div>
+    </div>
+    <label>Threat Intelligence Text</label>
+    <textarea id="threatText" placeholder="Paste threat report, IOC data, or incident description here..."></textarea>
+    <div class="sample-btns">
+      <button onclick="loadSample('apt')">APT Sample</button>
+      <button onclick="loadSample('ransomware')">Ransomware Sample</button>
+      <button onclick="loadSample('phishing')">Phishing Sample</button>
+      <button onclick="loadSample('ddos')">DDoS Sample</button>
+      <button onclick="loadSample('insider')">Insider Sample</button>
+    </div>
+    <button class="btn-primary" onclick="analyzeThreat()"><i class="fa-solid fa-microchip"></i> RUN AI ANALYSIS</button>
+
+    <div class="result-box" id="resultBox">
+      <span class="conf-text" id="confText"></span>
+      <span class="risk-badge" id="riskBadge"></span>
+      <h3 style="margin-top:20px;">Category Confidence</h3>
+      <div id="catBars"></div>
+      <h3 style="margin-top:20px;">Extracted IOCs</h3>
+      <div class="chips" id="iocChips"><span style="color:#7a8bab;font-size:.85rem;">None detected</span></div>
+      <h3 style="margin-top:20px;">MITRE ATT&CK Techniques</h3>
+      <div class="chips" id="mitreChips"><span style="color:#7a8bab;font-size:.85rem;">None mapped</span></div>
+      <button class="btn-outline" style="margin-top:20px;" onclick="exportResult()"><i class="fa-solid fa-file-export"></i> EXPORT REPORT</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DASHBOARD ============ -->
+<div class="page" id="page-dashboard">
+  <div class="metrics-grid">
+    <div class="metric-card"><i class="fa-solid fa-tower-broadcast"></i><div class="metric-value" id="mThreats">0</div><div class="metric-label">Threats Today</div></div>
+    <div class="metric-card"><i class="fa-solid fa-triangle-exclamation"></i><div class="metric-value" id="mHigh">0</div><div class="metric-label">High Risk Alerts</div></div>
+    <div class="metric-card"><i class="fa-solid fa-fingerprint"></i><div class="metric-value" id="mIocs">0</div><div class="metric-label">IOCs Extracted</div></div>
+    <div class="metric-card"><i class="fa-solid fa-robot"></i><div class="metric-value" id="mConf">0%</div><div class="metric-label">AI Confidence</div></div>
+  </div>
+  <div class="dash-grid">
+    <div class="card">
+      <h3><i class="fa-solid fa-chart-column"></i> 7-Day Threat Distribution</h3>
+      <div class="bar-chart" id="barChart"></div>
+    </div>
+    <div class="card">
+      <h3><i class="fa-solid fa-satellite-dish"></i> Live Threat Feed</h3>
+      <div id="feedList"></div>
+    </div>
+  </div>
+  <div class="dash-grid" style="margin-top:25px;">
+    <div class="card">
+      <h3><i class="fa-solid fa-chart-pie"></i> Risk Level Breakdown</h3>
+      <div class="donut-legend" id="distLegend"></div>
+    </div>
+    <div class="card">
+      <h3><i class="fa-solid fa-database"></i> Database Status</h3>
+      <p style="color:#9fb3d1;font-size:.9rem;line-height:1.7;">All analyses and scans are persisted live in <b>SQLite (cti.db)</b> via the FastAPI backend. Run more analyses in Step 1 or scans in Step 3 to see these numbers change in real time.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCANNER ============ -->
+<div class="page" id="page-scanner">
+  <div class="panel fade-in">
+    <div class="panel-title"><i class="fa-solid fa-magnifying-glass-chart"></i><span class="code">IOC_LOOKUP_ENGINE — connected to /api/scan</span></div>
+    <div class="form-row">
+      <div><label>IOC Type</label>
+        <select id="iocType"><option value="ip">IP Address</option><option value="domain">Domain</option><option value="hash">File Hash</option><option value="email">Email</option><option value="cve">CVE</option></select>
+      </div>
+      <div><label>Indicator Value</label>
+        <input type="text" id="iocValue" placeholder="e.g. 185.220.101.47">
+      </div>
+    </div>
+    <label>Intelligence Sources</label>
+    <div class="checks">
+      <label><input type="checkbox" value="MITRE ATT&CK" checked> MITRE ATT&CK</label>
+      <label><input type="checkbox" value="VirusTotal Feed" checked> VirusTotal Feed</label>
+      <label><input type="checkbox" value="MISP Database" checked> MISP Database</label>
+      <label><input type="checkbox" value="Shodan Intel"> Shodan Intel</label>
+    </div>
+    <button class="btn-primary" onclick="scanIOC()"><i class="fa-solid fa-magnifying-glass"></i> SCAN INDICATOR</button>
+    <div class="scan-result" id="scanResult"></div>
+  </div>
+</div>
+
+<!-- ============ ARCHITECTURE ============ -->
+<div class="page" id="page-architecture">
+  <h2 class="fade-in" style="text-align:center;color:var(--primary);">SYSTEM ARCHITECTURE</h2>
+  <div class="arch-flow fade-in">
+    <div class="arch-box"><i class="fa-solid fa-user"></i><br>User / Analyst</div>
+    <i class="fa-solid fa-arrow-right"></i>
+    <div class="arch-box"><i class="fa-solid fa-server"></i><br>FastAPI Backend</div>
+    <i class="fa-solid fa-arrow-right"></i>
+    <div class="arch-box"><i class="fa-solid fa-brain"></i><br>AI/ML Classifier</div>
+    <i class="fa-solid fa-arrow-right"></i>
+    <div class="arch-box"><i class="fa-solid fa-database"></i><br>SQLite Database</div>
+    <i class="fa-solid fa-arrow-right"></i>
+    <div class="arch-box"><i class="fa-solid fa-chart-line"></i><br>User Dashboard</div>
+  </div>
+  <div class="glass-grid">
+    <div class="glass-card"><h3><i class="fa-solid fa-database"></i> Database</h3><p style="color:#9fb3d1;font-size:.88rem;margin-top:10px;">SQLite via SQLAlchemy ORM. Tables: <code>analyses</code>, <code>scan_logs</code>, <code>threat_feed</code>. JSON columns store category scores, MITRE mappings and IOC lists.</p></div>
+    <div class="glass-card"><h3><i class="fa-solid fa-layer-group"></i> Tech Stack</h3><p style="color:#9fb3d1;font-size:.88rem;margin-top:10px;">Frontend: HTML/CSS/JS SPA. Backend: Python FastAPI + Pydantic. ORM: SQLAlchemy. Server: Uvicorn ASGI.</p></div>
+    <div class="glass-card"><h3><i class="fa-solid fa-satellite"></i> Data Sources</h3><p style="color:#9fb3d1;font-size:.88rem;margin-top:10px;">Keyword/NLP classifier inspired by the MITRE CTI corpus and BERT-spaCy hybrid research, extended with regex-based IOC/CVE extraction.</p></div>
+  </div>
+
+  <h3 style="margin-top:50px;color:var(--primary);text-align:center;">LITERATURE REVIEW</h3>
+  <div class="glass-grid">
+    <div class="glass-card">
+      <h3>MITRE CTI Repository</h3>
+      <p style="color:#9fb3d1;font-size:.85rem;">github.com/mitre/cti — canonical ATT&CK technique taxonomy used for mapping.</p>
+      <div class="improve-box">Our Improvement: real-time technique mapping served via REST API instead of static lookup tables.</div>
+    </div>
+    <div class="glass-card">
+      <h3>BERT-spaCy Hybrid CTI</h3>
+      <p style="color:#9fb3d1;font-size:.85rem;">doi.org/10.1038/s41598-025-34505-2 — hybrid NLP classification for threat text.</p>
+      <div class="improve-box">Our Improvement: lightweight, dependency-free rule-weighted classifier deployable without GPU, with a persistence layer for auditability.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FEATURES ============ -->
+<div class="page" id="page-features">
+  <h2 class="fade-in" style="text-align:center;color:var(--primary);">PLATFORM FEATURES</h2>
+  <div class="feature-grid" style="margin-top:30px;">
+    <div class="feature-card"><i class="fa-solid fa-language"></i><h3>NLP Threat Classification</h3><p style="color:#8ba0c2;font-size:.88rem;">Classifies free-text threat reports into categories (Ransomware, APT, Phishing, DDoS, Insider, Malware).</p></div>
+    <div class="feature-card"><i class="fa-solid fa-gauge-high"></i><h3>Risk Level Prediction</h3><p style="color:#8ba0c2;font-size:.88rem;">Assigns HIGH / MEDIUM / LOW risk with confidence scoring, persisted to SQLite.</p></div>
+    <div class="feature-card"><i class="fa-solid fa-fingerprint"></i><h3>IOC Extraction</h3><p style="color:#8ba0c2;font-size:.88rem;">Regex-based extraction of IPs, domains, hashes, CVEs and emails from raw text.</p></div>
+    <div class="feature-card"><i class="fa-solid fa-diagram-project"></i><h3>MITRE ATT&CK Mapping</h3><p style="color:#8ba0c2;font-size:.88rem;">Maps detected threat categories to relevant MITRE technique IDs.</p></div>
+    <div class="feature-card"><i class="fa-solid fa-clock-rotate-left"></i><h3>Historical Analysis</h3><p style="color:#8ba0c2;font-size:.88rem;">Every analysis and scan is stored in the database and retrievable via API.</p></div>
+    <div class="feature-card"><i class="fa-solid fa-chart-line"></i><h3>Real-Time Dashboard</h3><p style="color:#8ba0c2;font-size:.88rem;">Live metrics, feed and charts computed directly from database aggregates.</p></div>
+  </div>
+  <div style="text-align:center;margin-top:40px;display:flex;gap:16px;justify-content:center;">
+    <button class="btn-outline" onclick="goTo('architecture')">BACK: ARCHITECTURE</button>
+    <button class="btn-outline" onclick="goTo('home')">BACK TO HOME</button>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-grid">
+    <div><h3 style="color:var(--primary);">CTI-RISK INTELLIGENCE</h3><p style="color:#8ba0c2;font-size:.88rem;margin-top:10px;">AI-powered Cyber Threat Intelligence risk identification platform. MDC/AI Project 2025, backed by a FastAPI + SQLite service layer.</p></div>
+    <div><h3 style="margin-bottom:12px;font-size:.95rem;">Navigation</h3>
+      <a onclick="goTo('analyzer')">Analyzer</a><a onclick="goTo('dashboard')">Dashboard</a><a onclick="goTo('scanner')">IOC Scanner</a><a onclick="goTo('architecture')">Architecture</a><a onclick="goTo('features')">Features</a>
+    </div>
+    <div><h3 style="margin-bottom:12px;font-size:.95rem;">References</h3>
+      <a href="https://github.com/mitre/cti" target="_blank">MITRE CTI</a>
+      <a href="https://attack.mitre.org" target="_blank">MITRE ATT&CK</a>
+      <a href="https://doi.org/10.1038/s41598-025-34505-2" target="_blank">BERT-spaCy Research</a>
+      <a href="/docs" target="_blank">API Docs (Swagger)</a>
+    </div>
+  </div>
+  <div class="footer-bottom">AI/ML Threat Classification Platform · FastAPI + SQLite Backend</div>
+</footer>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <i class="fa-solid fa-circle-info" id="modalIcon"></i>
+    <h3 id="modalTitle"></h3>
+    <p id="modalDesc"></p>
+    <button class="btn-outline" onclick="closeModal()">CLOSE</button>
+  </div>
+</div>
+
+<script>
+/* ================= API WRAPPER ================= */
+const api = {
+  analyze: (p) => fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}),
+  scan: (p) => fetch('/api/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}),
+  metrics: () => fetch('/api/dashboard/metrics'),
+  chart: () => fetch('/api/dashboard/chart'),
+  distribution: () => fetch('/api/dashboard/distribution'),
+  feed: () => fetch('/api/dashboard/feed'),
+  health: () => fetch('/api/health'),
+};
+
+/* ================= MODAL ================= */
+function showModal(icon,title,desc){
+  document.getElementById('modalIcon').className = 'fa-solid ' + icon;
+  document.getElementById('modalTitle').innerText = title;
+  document.getElementById('modalDesc').innerText = desc;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('show'); }
+
+/* ================= NAVIGATION ================= */
+const pages = ['home','analyzer','dashboard','scanner','architecture','features'];
+function goTo(name){
+  if(!pages.includes(name)) name = 'home';
+  pages.forEach(p => document.getElementById('page-'+p).classList.toggle('active', p===name));
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.toggle('active', a.dataset.page===name));
+  document.getElementById('stepNav').classList.toggle('show', name!=='home');
+  document.querySelectorAll('.step').forEach(s => s.classList.toggle('active', s.dataset.step===name));
+  location.hash = name;
+  initFadeIn();
+  if(name==='home') triggerHeroCounters();
+  if(name==='dashboard') loadDashboard();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+window.addEventListener('hashchange', () => goTo(location.hash.replace('#','') || 'home'));
+
+/* ================= FADE-IN OBSERVER ================= */
+function initFadeIn(){
+  const obs = new IntersectionObserver(entries => entries.forEach(e => { if(e.isIntersecting) e.target.style.opacity = 1; }), {threshold:.1});
+  document.querySelectorAll('.fade-in').forEach(el => { el.style.opacity=0; el.style.transition='opacity .6s'; obs.observe(el); });
+}
+
+/* ================= HERO COUNTERS ================= */
+function triggerHeroCounters(){
+  document.querySelectorAll('.counter').forEach(el => {
+    const target = parseFloat(el.dataset.target);
+    const suffix = el.dataset.suffix || '';
+    let cur = 0;
+    const step = target / 60;
+    const iv = setInterval(() => {
+      cur += step;
+      if(cur >= target){ cur = target; clearInterval(iv); }
+      el.innerText = (target % 1 !== 0 ? cur.toFixed(1) : Math.floor(cur)) + suffix;
+    }, 20);
+  });
+}
+
+/* ================= SAMPLES ================= */
+const samples = {
+  apt: "Threat actors associated with an advanced persistent threat (APT) group, believed to be state-sponsored, have been observed conducting long-term cyberespionage campaigns against government and defense contractors. The group leverages spear-phishing and command and scripting interpreters to maintain persistence. Indicators include IP 185.220.101.47 and domain secure-update-portal.ru.",
+  ransomware: "A new ransomware strain has been detected encrypting files across enterprise networks and demanding bitcoin ransom payments. The locker displays an extortion note and disables system recovery options. File hash observed: a94a8fe5ccb19ba61c4c0873d391e987982fbbd3. Related CVE-2024-3400 is being exploited for initial access.",
+  phishing: "A large-scale phishing campaign is impersonating financial institutions, sending emails with spoofed login pages to harvest employee credentials. The attack uses social engineering lures referencing urgent account verification. Reported sender domain: secure-bank-alerts.com, contact admin@secure-bank-alerts.com.",
+  ddos: "Security researchers have identified a growing botnet responsible for a wave of distributed denial of service (DDoS) attacks using UDP amplification and SYN flood techniques against e-commerce platforms during peak sales periods.",
+  insider: "An internal investigation flagged a disgruntled employee attempting unauthorized data exfiltration using privileged access to cloud storage systems, copying sensitive customer records to external USB devices before resignation."
+};
+function loadSample(type){ document.getElementById('threatText').value = samples[type]; }
+
+/* ================= ANALYZER ================= */
+let lastAnalysisId = null;
+async function analyzeThreat(){
+  const text = document.getElementById('threatText').value.trim();
+  if(text.length < 10){
+    showModal('fa-triangle-exclamation','Input Too Short','Please enter at least 10 characters of threat intelligence text to analyze.');
+    return;
+  }
+  const payload = {
+    input_type: document.getElementById('inputType').value,
+    model: document.getElementById('modelType').value,
+    text: text
+  };
+  try{
+    const res = await api.analyze(payload);
+    if(!res.ok){ const err = await res.json(); throw new Error(err.detail || 'Analysis failed'); }
+    renderResult(await res.json());
+  }catch(err){
+    showModal('fa-server','Backend Unreachable', err.message || 'Could not reach the FastAPI backend. Make sure it is running on this host.');
+  }
+}
+function renderResult(data){
+  lastAnalysisId = data.id;
+  const box = document.getElementById('resultBox');
+  box.classList.add('show');
+
+  const badge = document.getElementById('riskBadge');
+  badge.className = 'risk-badge risk-' + data.risk_level;
+  badge.innerText = data.risk_level + ' RISK';
+  document.getElementById('confText').innerText = 'Confidence: ' + data.confidence + '%';
+
+  const catBars = document.getElementById('catBars');
+  catBars.innerHTML = '';
+  Object.entries(data.category_scores).forEach(([cat,score]) => {
+    catBars.innerHTML += `
+      <div class="cat-bar-wrap">
+        <div class="cat-bar-label"><span>${cat}</span><span>${score}%</span></div>
+        <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${score}%"></div></div>
+      </div>`;
+  });
+
+  const iocChips = document.getElementById('iocChips');
+  iocChips.innerHTML = data.iocs.length
+    ? data.iocs.map(i => `<span class="chip">${i.type}: ${i.value}</span>`).join('')
+    : '<span style="color:#7a8bab;font-size:.85rem;">None detected</span>';
+
+  const mitreChips = document.getElementById('mitreChips');
+  mitreChips.innerHTML = data.mitre_techniques.length
+    ? data.mitre_techniques.map(m => `<span class="chip mitre-chip">${m.id} — ${m.name}</span>`).join('')
+    : '<span style="color:#7a8bab;font-size:.85rem;">None mapped</span>';
+}
+function exportResult(){
+  if(!lastAnalysisId){
+    showModal('fa-circle-exclamation','No Report Yet','Run an analysis first before exporting a report.');
+    return;
+  }
+  window.open('/api/export/' + lastAnalysisId, '_blank');
+}
+
+/* ================= SCANNER ================= */
+async function scanIOC(){
+  const indicator = document.getElementById('iocValue').value.trim();
+  if(!indicator){
+    showModal('fa-triangle-exclamation','Missing Indicator','Please enter an indicator value to scan.');
+    return;
+  }
+  const sources = Array.from(document.querySelectorAll('.checks input:checked')).map(c => c.value);
+  const payload = { ioc_type: document.getElementById('iocType').value, indicator, sources };
+  try{
+    const res = await api.scan(payload);
+    if(!res.ok){ const err = await res.json(); throw new Error(err.detail || 'Scan failed'); }
+    renderScan(await res.json());
+  }catch(err){
+    showModal('fa-server','Backend Unreachable', err.message || 'Could not reach the FastAPI backend.');
+  }
+}
+function renderScan(data){
+  const box = document.getElementById('scanResult');
+  box.className = 'scan-result show ' + (data.verdict === 'MALICIOUS' ? 'malicious' : 'clean');
+  box.innerHTML = `
+    <h3 style="color:${data.verdict==='MALICIOUS' ? 'var(--danger)' : 'var(--success)'};">
+      <i class="fa-solid ${data.verdict==='MALICIOUS' ? 'fa-skull-crossbones' : 'fa-shield-halved'}"></i> ${data.verdict}
+    </h3>
+    <p style="margin-top:8px;color:#b8c8e0;">Indicator: <b>${data.indicator}</b> (${data.ioc_type.toUpperCase()})</p>
+    <p style="color:#b8c8e0;">Threat Score: <b>${data.threat_score}/100</b></p>
+    <p style="color:#b8c8e0;">Last Seen: <b>${data.last_seen}</b></p>
+    <p style="color:#b8c8e0;">Sources Checked: ${data.sources_checked.join(', ') || 'None'}</p>
+    <div class="chips" style="margin-top:12px;">
+      ${data.mitre_matches.length ? data.mitre_matches.map(m => `<span class="chip mitre-chip">${m}</span>`).join('') : '<span style="color:#7a8bab;font-size:.85rem;">No MITRE matches</span>'}
+    </div>`;
+}
+
+/* ================= DASHBOARD ================= */
+async function loadDashboard(){
+  try{
+    const [m, c, d, f] = await Promise.all([api.metrics(), api.chart(), api.distribution(), api.feed()]);
+    if(m.ok) renderMetrics(await m.json());
+    if(c.ok) renderChart(await c.json());
+    if(d.ok) renderDistribution(await d.json());
+    if(f.ok) renderFeed(await f.json());
+  }catch(err){ /* handled by API status badge */ }
+}
+function renderMetrics(data){
+  document.getElementById('mThreats').innerText = data.threats_today;
+  document.getElementById('mHigh').innerText = data.high_risk_alerts;
+  document.getElementById('mIocs').innerText = data.iocs_extracted;
+  document.getElementById('mConf').innerText = data.ai_confidence + '%';
+}
+function renderChart(points){
+  const chart = document.getElementById('barChart');
+  const max = Math.max(...points.map(p => p.high+p.medium+p.low), 1);
+  chart.innerHTML = points.map(p => `
+    <div class="bar-col">
+      <div class="bar" style="height:${p.high/max*160}px;background:var(--danger);" title="High: ${p.high}"></div>
+      <div class="bar" style="height:${p.medium/max*160}px;background:var(--warning);" title="Medium: ${p.medium}"></div>
+      <div class="bar" style="height:${p.low/max*160}px;background:var(--success);" title="Low: ${p.low}"></div>
+      <div class="bar-day">${p.day}</div>
+    </div>`).join('');
+}
+function renderDistribution(dist){
+  document.getElementById('distLegend').innerHTML = `
+    <div class="legend-row"><span><span class="legend-dot" style="background:var(--danger);"></span>High Risk</span><b>${dist.high}%</b></div>
+    <div class="legend-row"><span><span class="legend-dot" style="background:var(--warning);"></span>Medium Risk</span><b>${dist.medium}%</b></div>
+    <div class="legend-row"><span><span class="legend-dot" style="background:var(--success);"></span>Low Risk</span><b>${dist.low}%</b></div>`;
+}
+function renderFeed(items){
+  const colors = {HIGH:'var(--danger)', MEDIUM:'var(--warning)', LOW:'var(--success)'};
+  document.getElementById('feedList').innerHTML = items.map(i => `
+    <div class="feed-item">
+      <span>${i.title}</span>
+      <span class="tag" style="background:${colors[i.risk_level]}22;color:${colors[i.risk_level]};">${i.risk_level}</span>
+    </div>`).join('') || '<p style="color:#7a8bab;font-size:.85rem;">No feed items yet.</p>';
+}
+setInterval(() => { if(document.getElementById('page-dashboard').classList.contains('active')) loadDashboard(); }, 6000);
+
+/* ================= API STATUS + TICKER ================= */
+async function checkApiHealth(){
+  const badge = document.getElementById('apiStatus');
+  try{
+    const res = await api.health();
+    if(res.ok){ badge.innerText = '● API Online'; badge.classList.remove('offline'); }
+    else throw new Error();
+  }catch{
+    badge.innerText = '● API Offline';
+    badge.classList.add('offline');
+  }
+}
+async function loadTicker(){
+  try{
+    const res = await api.feed();
+    if(res.ok){
+      const items = await res.json();
+      document.getElementById('tickerText').innerText = items.map(i => `[${i.risk_level}] ${i.title}`).join('   ///   ');
+    }
+  }catch{ document.getElementById('tickerText').innerText = 'LIVE FEED UNAVAILABLE — START THE FASTAPI BACKEND'; }
+}
+checkApiHealth();
+loadTicker();
+setInterval(checkApiHealth, 10000);
+
+/* ================= PARTICLE BACKGROUND ================= */
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resizeCanvas(){ canvas.width = innerWidth; canvas.height = innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+function Particle(){
+  this.x = Math.random()*canvas.width;
+  this.y = Math.random()*canvas.height;
+  this.vx = (Math.random()-.5)*.4;
+  this.vy = (Math.random()-.5)*.4;
+  this.r = Math.random()*1.5+.5;
+}
+particles = Array.from({length:80}, () => new Particle());
+function animateParticles(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if(p.x<0||p.x>canvas.width) p.vx*=-1;
+    if(p.y<0||p.y>canvas.height) p.vy*=-1;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle = 'rgba(0,212,255,.6)';
+    ctx.fill();
+  });
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const dx = particles[i].x-particles[j].x, dy = particles[i].y-particles[j].y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist<110){
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x,particles[i].y);
+        ctx.lineTo(particles[j].x,particles[j].y);
+        ctx.strokeStyle = `rgba(0,212,255,${1-dist/110})`;
+        ctx.lineWidth = .5;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+/* ================= INIT ================= */
+goTo(location.hash.replace('#','') || 'home');
+</script>
+</body>
+</html>
